@@ -66,6 +66,46 @@ census_test$native.country=factor(new.levels[census_test$native.country])
 census_test$native.country[census_test$native.country == 0]=NA
 census_test$income=factor(census_test$income, levels=c(" <=50K", " >50K"), labels=c(0,1))
 
+
+# Preliminary model and adjustments ---------------------------------------
+#Started with basic logistic regression
+library(glmnet)
+glm.fit=glm(income~.,data=census_train, family=binomial)
+glm.probs=predict(glm.fit, newdata=census_val, type="response")
+glm.pred=rep(0,10000)
+glm.pred[glm.probs>.5]=1
+table(glm.pred, census_val$income)
+mean(glm.pred==census_val$income)
+
+#adding non-linear modeling
+fit.poly=glm(income~poly(hours.per.week, 10), data=census_train,family=binomial)
+coef(summary(fit.poly))
+fit.poly=glm(income~poly(age, 10), data=census_train,family=binomial)
+coef(summary(fit.poly))
+
+#including in the GAM 
+gam.mod=gam(income~poly(age,4)+poly(hours.per.week,6)+fnlwgt+education.num+capital.gain+
+              capital.loss+workclass+marital.status+occupation+relationship+
+              race+sex+native.country, family=binomial,data=census_train)
+gam.probs=predict(gam.mod, newdata=census_val, type="response")
+gam.pred=rep(0,length(census_val$income))
+gam.pred[gam.probs>.5]=1
+table(gam.pred, census_val$income)
+mean(gam.pred==census_val$income)
+
+#inclusion of local regression
+#local regression
+gam.mod=gam(income~s(age,4)+s(hours.per.week,6)+education.num+lo(capital.gain)+fnlwgt+
+              capital.loss+workclass+marital.status+occupation+relationship+
+              race+sex+native.country, family=binomial,data=census_train)
+gam.probs=predict(gam.mod, newdata=census_val, type="response")
+gam.pred=rep(0,length(census_val$income))
+gam.pred[gam.probs>.5]=1
+table(gam.pred, census_val$income)
+mean(gam.pred==census_val$income)
+
+
+# Final model -------------------------------------------------------------
 library(gam)
 
 gam.mod=gam(income~s(age,4)+s(hours.per.week,6)+education.num+lo(capital.gain)+fnlwgt+
